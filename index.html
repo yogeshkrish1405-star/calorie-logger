@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calorie Logger</title>
+<style>
+  :root{
+    --bg:#FAF8F3; --card:#ffffff; --ink:#2B2B28; --sub:#6E6B62;
+    --line:#E4E0D6; --accent:#3B6D11; --accent-bg:#EAF3DE; --accent-ink:#27500A;
+    --danger:#A32D2D; --danger-bg:#FCEBEB;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--ink); padding:16px; max-width:480px; margin:0 auto;
+  }
+  h1{font-size:20px; font-weight:600; margin:4px 0 2px;}
+  .sub{font-size:13px; color:var(--sub); margin-bottom:12px;}
+  .datebar{display:flex; align-items:center; gap:8px; margin-bottom:14px;}
+  .datebar label{font-size:13px; color:var(--sub);}
+  .datebar input[type=date]{flex:1;}
+  .top{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:12px;}
+  .total{font-size:26px; font-weight:600;}
+  .totlabel{font-size:12px; color:var(--sub);}
+  .macros{font-size:12px; color:var(--sub); text-align:right; line-height:1.5;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px;}
+  .card-head{display:flex; justify-content:space-between; align-items:baseline;}
+  .card-head .name{font-weight:600; font-size:14px;}
+  .card-head .prog{font-size:12px; color:var(--sub);}
+  .card-macros{font-size:11px; color:var(--sub); margin-top:2px;}
+  .entry{display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-top:1px solid var(--line); font-size:13px;}
+  .entry .del{background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px; padding:2px 6px;}
+  select, input, button{
+    font-size:14px; padding:8px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--ink);
+  }
+  select{flex:2; min-width:140px;}
+  input[type=number]{width:60px;}
+  input[type=text]{flex:1; min-width:100px;}
+  .row{display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;}
+  button{background:var(--accent-bg); color:var(--accent-ink); border:1px solid var(--accent-bg); font-weight:600; cursor:pointer;}
+  button:active{transform:scale(0.98);}
+  button.secondary{background:#fff; color:var(--ink); border:1px solid var(--line);}
+  .err{color:var(--danger); font-size:13px; margin:6px 0; display:none;}
+  .section-title{font-size:13px; color:var(--sub); margin:18px 0 6px;}
+  .footer-note{font-size:12px; color:var(--sub); margin-top:20px; line-height:1.6; border-top:1px solid var(--line); padding-top:14px;}
+  .export-row{display:flex; gap:8px; margin-top:14px;}
+  .insight-card{background:var(--accent-bg); border:1px solid var(--accent-bg); border-radius:12px; padding:12px 14px; margin-top:10px;}
+  .insight-card h3{font-size:13px; margin:0 0 6px; color:var(--accent-ink);}
+  .insight-card ul{margin:0; padding-left:18px; font-size:13px; line-height:1.6;}
+  .insight-card p.empty{font-size:13px; color:var(--sub); margin:0;}
+</style>
+</head>
+<body>
+
+<h1>Calorie logger</h1>
+<div class="sub">South Indian vegetarian + egg meals, split by time of day</div>
+
+<div class="datebar">
+  <label for="dateInput">Logging for</label>
+  <input id="dateInput" type="date">
+</div>
+
+<div class="top">
+  <div>
+    <div class="totlabel">Total for this day</div>
+    <div class="total" id="total">0 / 2000 kcal</div>
+  </div>
+  <div class="macros">
+    Protein <span id="protVal">0</span>/130g<br>
+    Carbs <span id="carbVal">0</span>/245g &middot; Fibre <span id="fibVal">0</span>/30g
+  </div>
+</div>
+
+<div class="row">
+  <input id="foodSearch" type="text" placeholder="Search foods (e.g. dosa, banana, egg)" style="flex:1;">
+</div>
+<div class="row">
+  <select id="mealSelect"></select>
+  <select id="foodSelect" style="flex:3;"></select>
+</div>
+<div class="row">
+  <input id="qty" type="number" min="0.25" step="0.25" value="1" placeholder="qty">
+  <button id="addBtn" style="flex:1;">Add to log</button>
+</div>
+<div class="err" id="errMsg"></div>
+
+<div id="meals"></div>
+
+<div class="section-title">Add a food not on the list</div>
+<div class="row">
+  <input id="customName" type="text" placeholder="Food name">
+</div>
+<div class="row">
+  <input id="customCal" type="number" min="1" placeholder="kcal">
+  <input id="customProt" type="number" min="0" placeholder="prot g">
+  <input id="customCarb" type="number" min="0" placeholder="carb g">
+  <input id="customFib" type="number" min="0" placeholder="fibre g">
+  <button id="customAddBtn">Add</button>
+</div>
+
+<div class="section-title">Insights</div>
+<div class="export-row">
+  <button id="analyzeBtn" class="secondary" style="flex:1;">Analyze this day</button>
+</div>
+<div id="insightsPanel"></div>
+
+<div class="section-title">Backup</div>
+<div class="export-row">
+  <button id="exportBtn" class="secondary" style="flex:1;">Export all logged days to CSV</button>
+</div>
+
+<div class="footer-note">
+  Calorie and macro values are approximate reference estimates for typical home-cooked servings, not lab-measured figures. This page stores your log locally in this browser only, per date — switch the date above to add or review any day, past or present. Use "Export all logged days to CSV" any time to download a spreadsheet of everything logged so far; open it in Excel, Sheets, or Numbers to track trends over time. Nothing is uploaded anywhere automatically, so export and save the CSV somewhere safe if you want a permanent backup.
+</div>
+
+<script>
+const FOODS = [
+["Tiffin","Idli (1 piece)",39,2,8,0.5],
+["Tiffin","Dosa, plain (1)",120,3,18,1.5],
+["Tiffin","Dosa, wheat/ragi (1)",110,3,17,2],
+["Tiffin","Dosa, masala (1)",200,4,28,2],
+["Tiffin","Rava dosa (1)",180,3,24,1],
+["Tiffin","Uttapam (1)",150,4,22,2],
+["Tiffin","Adai (1)",160,6,22,3],
+["Tiffin","Poori (1 piece)",90,2,11,0.5],
+["Tiffin","Upma (1 cup)",200,5,30,2.5],
+["Tiffin","Ven pongal (1 cup)",250,7,38,2],
+["Tiffin","Rava kesari (1 cup)",300,3,45,0.5],
+["Tiffin","Idiyappam (1 piece)",70,1.5,15,0.5],
+["Tiffin","Appam (1)",120,2,20,0.5],
+["Tiffin","Paniyaram (3 pieces)",150,3,22,1],
+["Tiffin","Medu vada (1)",100,4,12,1.5],
+["Tiffin","Masala vada (1)",120,5,14,3],
+["Rice dishes","Cooked rice, plain (1 cup)",200,4,44,0.5],
+["Rice dishes","Curd rice (1 cup)",180,6,28,1],
+["Rice dishes","Lemon rice (1 cup)",220,4,32,1],
+["Rice dishes","Tamarind rice / puliyodarai (1 cup)",230,4,34,1.5],
+["Rice dishes","Tomato rice (1 cup)",210,4,32,1.5],
+["Rice dishes","Coconut rice (1 cup)",250,4,30,1.5],
+["Rice dishes","Bisi bele bath (1 cup)",260,7,38,3],
+["Rice dishes","Vegetable biryani (1 cup)",280,6,38,3],
+["Rice dishes","Egg biryani (1 cup, 1 egg)",340,12,38,2],
+["Rice dishes","Khichdi (1 cup)",220,7,34,3],
+["Rice dishes","Fermented rice / pazham sadham (1 cup)",190,4,40,1],
+["Rice dishes","Varagu rice / kodo millet, cooked (1 cup)",180,5,36,4],
+["Rice dishes","Rice kanji / congee (1 cup)",120,2,26,0.5],
+["Sambar / rasam","Sambar, mixed veg (1 cup)",120,6,18,4],
+["Sambar / rasam","Sambar, drumstick (1 cup)",110,5,16,4],
+["Sambar / rasam","Sambar, brinjal (1 cup)",115,5,16,3.5],
+["Sambar / rasam","Sambar, okra (1 cup)",110,5,15,4],
+["Sambar / rasam","Rasam, tomato (1 cup)",60,2,10,1],
+["Sambar / rasam","Rasam, pepper-cumin (1 cup)",55,2,8,1],
+["Sambar / rasam","Vatha kuzhambu (1 cup)",130,4,16,3],
+["Sambar / rasam","Puli kuzhambu (1 cup)",125,4,15,3],
+["Kootu","Kootu, beans (1 cup)",120,6,16,5],
+["Kootu","Kootu, cabbage (1 cup)",110,6,14,4],
+["Kootu","Kootu, chow chow (1 cup)",115,6,15,4],
+["Kootu","Kootu, ash gourd (1 cup)",100,5,13,3],
+["Kootu","Kootu, snake gourd (1 cup)",105,5,13,3.5],
+["Poriyal","Poriyal, beans (1 cup)",100,3,12,4],
+["Poriyal","Poriyal, carrot (1 cup)",95,2,12,3.5],
+["Poriyal","Poriyal, cabbage (1 cup)",90,2,11,3.5],
+["Poriyal","Poriyal, beetroot (1 cup)",100,2,14,3],
+["Poriyal","Poriyal, potato (1 cup)",150,3,22,2.5],
+["Poriyal","Poriyal, ladies finger / okra (1 cup)",100,3,11,4],
+["Poriyal","Poriyal, chow chow (1 cup)",90,2,11,3],
+["Poriyal","Poriyal, snake gourd (1 cup)",85,2,10,3],
+["Poriyal","Poriyal, bottle gourd (1 cup)",80,2,9,2.5],
+["Poriyal","Poriyal, ridge gourd (1 cup)",85,2,10,2.5],
+["Poriyal","Poriyal, cluster beans (1 cup)",100,4,12,5],
+["Poriyal","Poriyal, raw banana (1 cup)",130,2,20,3],
+["Poriyal","Poriyal, yam (1 cup)",140,2,24,3],
+["Poriyal","Poriyal, drumstick (1 cup)",90,3,11,4],
+["Poriyal","Poriyal, pumpkin (1 cup)",90,2,13,2.5],
+["Poriyal","Poriyal, ivy gourd / kovakkai (1 cup)",95,2,11,3],
+["Poriyal","Avial, mixed veg (1 cup)",150,4,14,5],
+["Raw vegetables (100g)","Cucumber, raw (100g)",15,0.7,3.6,0.5],
+["Raw vegetables (100g)","Carrot, raw (100g)",41,0.9,10,2.8],
+["Raw vegetables (100g)","Tomato, raw (100g)",18,0.9,3.9,1.2],
+["Raw vegetables (100g)","Onion, raw (100g)",40,1.1,9.3,1.7],
+["Raw vegetables (100g)","Cabbage, raw (100g)",25,1.3,5.8,2.5],
+["Raw vegetables (100g)","Beetroot, raw (100g)",43,1.6,10,2.8],
+["Raw vegetables (100g)","Raw banana (100g)",89,1.1,23,2.6],
+["Raw vegetables (100g)","Radish, raw (100g)",16,0.7,3.4,1.6],
+["Raw vegetables (100g)","Beans / french beans, raw (100g)",31,1.8,7,3.4],
+["Raw vegetables (100g)","Capsicum / bell pepper (100g)",20,0.9,4.6,1.7],
+["Raw vegetables (100g)","Bottle gourd, raw (100g)",14,0.6,3.4,0.5],
+["Raw vegetables (100g)","Ridge gourd, raw (100g)",20,0.5,4.4,1.1],
+["Raw vegetables (100g)","Snake gourd, raw (100g)",18,0.5,4,1.1],
+["Raw vegetables (100g)","Ladies finger / okra, raw (100g)",33,1.9,7.5,3.2],
+["Raw vegetables (100g)","Brinjal / eggplant, raw (100g)",25,1,6,3],
+["Raw vegetables (100g)","Pumpkin, raw (100g)",26,1,6.5,0.5],
+["Raw vegetables (100g)","Drumstick, raw (100g)",37,2.1,8.5,3.2],
+["Raw vegetables (100g)","Spinach / keerai, raw (100g)",23,2.9,3.6,2.2],
+["Raw vegetables (100g)","Ivy gourd / kovakkai, raw (100g)",17,1.2,3.6,2.6],
+["Raw vegetables (100g)","Yam, raw (100g)",118,1.5,28,4.1],
+["Fruits","Banana (1 medium)",105,1.3,27,3.1],
+["Fruits","Apple (1 medium)",95,0.5,25,4.4],
+["Fruits","Papaya, cubed (1 cup)",62,0.7,16,2.5],
+["Fruits","Watermelon, cubed (1 cup)",46,0.9,12,0.6],
+["Fruits","Orange (1 medium)",62,1.2,15,3.1],
+["Fruits","Guava (1 medium)",37,1.4,8,3],
+["Fruits","Grapes (1 cup)",104,1.1,27,1.4],
+["Fruits","Pomegranate arils (1 cup)",144,3,33,7],
+["Fruits","Mango, sliced (1 cup)",99,1.4,25,2.6],
+["Fruits","Pineapple, cubed (1 cup)",82,0.9,22,2.3],
+["Fruits","Sapota / chikoo (1 medium)",100,0.5,24,5],
+["Fruits","Musk melon, cubed (1 cup)",60,1.5,14,1.6],
+["Bread","Whole wheat bread (1 slice)",80,3,14,2],
+["Bread","Brown bread (1 slice)",75,3,13,1.8],
+["Bread","Multigrain bread (1 slice)",85,4,14,2.5],
+["Bread","Chapati / roti (1)",100,3,18,2],
+["Bread","Paratha, plain (1)",150,3,20,2],
+["Bread","Naan (1)",260,9,45,2],
+["Dairy / drinks","Buttermilk / mor (1 glass)",40,2,4,0],
+["Dairy / drinks","Curd / yogurt, plain (1 cup)",150,8,11,0],
+["Dairy / drinks","Milk, toned (1 cup)",100,5,7,0],
+["Dairy / drinks","Milk, full cream (1 cup)",150,7,11,0],
+["Dairy / drinks","Paneer (100g)",265,18,1.2,0],
+["Protein sources (veg)","Soya chunks / meal maker, cooked (1 cup)",230,26,20,6],
+["Protein sources (veg)","Tofu (100g)",76,8,1.9,0.3],
+["Protein sources (veg)","Sprouts, mixed, raw (1 cup)",70,7,12,5],
+["Protein sources (veg)","Chickpeas / chana, cooked (1 cup)",270,15,45,12],
+["Protein sources (veg)","Black chana, cooked (1 cup)",210,12,35,10],
+["Protein sources (veg)","Rajma / kidney beans, cooked (1 cup)",225,15,40,11],
+["Protein sources (veg)","Moong dal, cooked (1 cup)",210,14,36,8],
+["Protein sources (veg)","Toor dal, cooked (1 cup)",200,13,35,7],
+["Protein sources (veg)","Urad dal, cooked (1 cup)",220,14,37,9],
+["Protein sources (veg)","Sundal, chickpea / chana (1 cup)",210,11,30,9],
+["Protein sources (veg)","Sundal, peanut (1 cup)",250,11,18,6],
+["Protein sources (veg)","Sundal, green gram / moong (1 cup)",190,11,28,7],
+["Protein sources (veg)","Whole green gram / moong, boiled (1 cup)",210,14,38,8],
+["Egg","Boiled egg (1)",78,6,0.6,0],
+["Egg","Omelette, plain (1 egg)",90,6,1,0],
+["Egg","Egg curry (1 egg, gravy)",150,7,6,1],
+["Egg","Egg bhurji (1 egg)",120,7,3,0.5],
+["Egg","Egg, fried / sunny side (1)",95,6,0.5,0],
+["Beverages","Tea, with milk and sugar (1 cup)",40,1,6,0],
+["Beverages","Coffee, with milk and sugar (1 cup)",50,1.5,7,0],
+["Beverages","Lemon tea (1 cup)",15,0,4,0],
+["Beverages","Green tea, plain (1 cup)",2,0,0.5,0],
+["Others","Coconut chutney (2 tbsp)",50,1,3,1],
+["Others","Groundnut chutney (2 tbsp)",60,2,4,1],
+["Others","Payasam (1 cup)",250,4,40,1],
+["Others","Papad, roasted (1)",35,2,6,0.5],
+["Others","Almonds (10 pieces)",70,2.5,2.5,1.5],
+["Others","Peanuts, roasted (1 tbsp)",55,2.5,2,1],
+["Others","Ghee (1 tsp)",45,0,0,0]
+];
+
+const MEALS = [
+["breakfast","Breakfast",500,32,61,8],
+["midmorning","Mid-morning",200,13,24,3],
+["lunch","Lunch",600,39,74,9],
+["evening","Evening",200,13,24,3],
+["dinner","Dinner",400,26,49,6],
+["night","Night",100,7,12,1.5]
+];
+const DAY_TARGET = { cal: 2000, prot: 130, carb: 245, fib: 30 };
+const KEY_PREFIX = "logger:";
+
+function fmtDate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return y + "-" + m + "-" + day;
+}
+function keyFor(dateStr){ return KEY_PREFIX + dateStr; }
+
+const dateInput = document.getElementById("dateInput");
+dateInput.value = fmtDate(new Date());
+dateInput.max = fmtDate(new Date());
+
+let entries = [];
+function loadEntries(){
+  entries = [];
+  try{
+    const raw = localStorage.getItem(keyFor(dateInput.value));
+    if(raw) entries = JSON.parse(raw);
+  }catch(e){}
+}
+function save(){
+  try{ localStorage.setItem(keyFor(dateInput.value), JSON.stringify(entries)); }catch(e){}
+}
+
+const mealSel = document.getElementById("mealSelect");
+MEALS.forEach(m=>{
+  const o = document.createElement("option");
+  o.value = m[0]; o.textContent = m[1];
+  mealSel.appendChild(o);
+});
+
+const foodSel = document.getElementById("foodSelect");
+const foodSearch = document.getElementById("foodSearch");
+
+function populateFoodOptions(filterText){
+  const q = (filterText || "").trim().toLowerCase();
+  foodSel.innerHTML = "";
+  let lastCategory = "";
+  let matchCount = 0;
+  FOODS.forEach((f, i)=>{
+    if(q && f[1].toLowerCase().indexOf(q)===-1 && f[0].toLowerCase().indexOf(q)===-1) return;
+    if(f[0] !== lastCategory){
+      const og = document.createElement("optgroup");
+      og.label = f[0];
+      foodSel.appendChild(og);
+      lastCategory = f[0];
+    }
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = f[1] + " \u00b7 " + f[2] + " kcal";
+    foodSel.lastChild.appendChild(o);
+    matchCount++;
+  });
+  if(matchCount===0){
+    const o = document.createElement("option");
+    o.textContent = "No matches";
+    o.disabled = true;
+    foodSel.appendChild(o);
+  }
+}
+populateFoodOptions("");
+foodSearch.addEventListener("input", ()=>{
+  populateFoodOptions(foodSearch.value);
+});
+
+function showErr(msg){ const e=document.getElementById("errMsg"); e.textContent=msg; e.style.display="block"; }
+function clearErr(){ document.getElementById("errMsg").style.display="none"; }
+
+function render(){
+  const total = entries.reduce((s,e)=>s+e.cal,0);
+  const prot = entries.reduce((s,e)=>s+e.prot,0);
+  const carb = entries.reduce((s,e)=>s+e.carb,0);
+  const fib = entries.reduce((s,e)=>s+e.fib,0);
+
+  document.getElementById("total").textContent = Math.round(total) + " / " + DAY_TARGET.cal + " kcal";
+  document.getElementById("protVal").textContent = Math.round(prot);
+  document.getElementById("carbVal").textContent = Math.round(carb);
+  document.getElementById("fibVal").textContent = Math.round(fib*10)/10;
+
+  const wrap = document.getElementById("meals");
+  wrap.innerHTML = "";
+  MEALS.forEach(m=>{
+    const [key,label,tCal,tProt,tCarb,tFib] = m;
+    const mealEntries = entries.filter(e=>e.meal===key);
+    const mCal = mealEntries.reduce((s,e)=>s+e.cal,0);
+    const mProt = mealEntries.reduce((s,e)=>s+e.prot,0);
+    const mCarb = mealEntries.reduce((s,e)=>s+e.carb,0);
+    const mFib = mealEntries.reduce((s,e)=>s+e.fib,0);
+
+    const card = document.createElement("div");
+    card.className = "card";
+    let html = '<div class="card-head"><span class="name">'+label+'</span>'+
+      '<span class="prog">'+Math.round(mCal)+' / '+tCal+' kcal</span></div>'+
+      '<div class="card-macros">P '+Math.round(mProt*10)/10+'/'+tProt+'g &middot; C '+Math.round(mCarb*10)/10+'/'+tCarb+'g &middot; F '+Math.round(mFib*10)/10+'/'+tFib+'g</div>';
+
+    mealEntries.forEach(e=>{
+      const idx = entries.indexOf(e);
+      html += '<div class="entry"><span>'+e.name+'</span>'+
+        '<span style="display:flex;align-items:center;gap:6px;">'+
+        '<span>'+Math.round(e.cal)+'</span>'+
+        '<button class="del" data-i="'+idx+'">\u2715</button></span></div>';
+    });
+    card.innerHTML = html;
+    wrap.appendChild(card);
+  });
+  wrap.querySelectorAll(".del").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      entries.splice(parseInt(b.dataset.i),1);
+      save(); render();
+    });
+  });
+}
+
+function analyze(){
+  const panel = document.getElementById("insightsPanel");
+  if(entries.length===0){
+    panel.innerHTML = '<div class="insight-card"><p class="empty">Nothing logged for this day yet, so there is nothing to analyze.</p></div>';
+    return;
+  }
+  const total = entries.reduce((s,e)=>s+e.cal,0);
+  const prot = entries.reduce((s,e)=>s+e.prot,0);
+  const carb = entries.reduce((s,e)=>s+e.carb,0);
+  const fib = entries.reduce((s,e)=>s+e.fib,0);
+  const remain = DAY_TARGET.cal - total;
+  const points = [];
+
+  if(remain < -50){
+    points.push("You're about " + Math.round(Math.abs(remain)) + " kcal over today's target. If there's a meal still ahead, lean lighter — buttermilk, a salad-style raw vegetable, or a small portion instead of a full serving.");
+  } else if(remain > 300){
+    points.push("You've got " + Math.round(remain) + " kcal still free for the day. If a meal is still ahead, this is room for a normal-sized serving rather than skipping it.");
+  } else {
+    points.push("You're tracking close to today's target (" + Math.round(total) + " / " + DAY_TARGET.cal + " kcal so far).");
+  }
+
+  if(prot < DAY_TARGET.prot * 0.6){
+    points.push("Protein is running low (" + Math.round(prot) + "g of " + DAY_TARGET.prot + "g). Egg (boiled, curry or bhurji), curd, kootu, or paneer are the quickest ways to close that gap without adding much bulk.");
+  } else if(prot >= DAY_TARGET.prot){
+    points.push("Protein target met (" + Math.round(prot) + "g) — no need to add more protein-heavy items for the rest of the day.");
+  }
+
+  if(carb > DAY_TARGET.carb * 0.9){
+    points.push("Carbs are already close to or past the day's target (" + Math.round(carb) + "g of " + DAY_TARGET.carb + "g). If more meals are left, favor kootu, poriyal, egg, or raw vegetables over more rice, dosa, or bread.");
+  }
+
+  if(fib < DAY_TARGET.fib * 0.5){
+    points.push("Fibre is low so far (" + Math.round(fib*10)/10 + "g of " + DAY_TARGET.fib + "g). Adding a raw vegetable, a kootu, or a fruit would help without much calorie cost.");
+  } else if(fib >= DAY_TARGET.fib){
+    points.push("Fibre target already met (" + Math.round(fib*10)/10 + "g) — good gut-friendly day.");
+  }
+
+  MEALS.forEach(m=>{
+    const [key,label,tCal] = m;
+    const mCal = entries.filter(e=>e.meal===key).reduce((s,e)=>s+e.cal,0);
+    if(mCal > tCal * 1.3){
+      points.push(label + " ran well over its own target (" + Math.round(mCal) + " / " + tCal + " kcal) — worth keeping that one lighter tomorrow.");
+    }
+  });
+
+  const list = points.map(p => "<li>" + p + "</li>").join("");
+  panel.innerHTML = '<div class="insight-card"><h3>Insights for ' + dateInput.value + '</h3><ul>' + list + '</ul></div>';
+}
+
+document.getElementById("analyzeBtn").addEventListener("click", analyze);
+
+dateInput.addEventListener("change", ()=>{
+  clearErr();
+  loadEntries();
+  render();
+  document.getElementById("insightsPanel").innerHTML = "";
+});
+
+document.getElementById("addBtn").addEventListener("click", ()=>{
+  clearErr();
+  const qty = parseFloat(document.getElementById("qty").value);
+  if(!qty || qty<=0){ showErr("Enter a valid quantity."); return; }
+  const f = FOODS[parseInt(foodSel.value)];
+  entries.push({
+    meal: mealSel.value,
+    name: (qty===1? "" : qty+"x ") + f[1],
+    cal: f[2]*qty, prot: f[3]*qty, carb: f[4]*qty, fib: f[5]*qty
+  });
+  save(); render();
+});
+
+document.getElementById("customAddBtn").addEventListener("click", ()=>{
+  clearErr();
+  const name = document.getElementById("customName").value.trim();
+  const cal = parseFloat(document.getElementById("customCal").value);
+  const prot = parseFloat(document.getElementById("customProt").value) || 0;
+  const carb = parseFloat(document.getElementById("customCarb").value) || 0;
+  const fib = parseFloat(document.getElementById("customFib").value) || 0;
+  if(!name){ showErr("Enter a food name."); return; }
+  if(!cal || cal<=0){ showErr("Enter valid calories."); return; }
+  entries.push({meal: mealSel.value, name, cal, prot, carb, fib});
+  document.getElementById("customName").value = "";
+  document.getElementById("customCal").value = "";
+  document.getElementById("customProt").value = "";
+  document.getElementById("customCarb").value = "";
+  document.getElementById("customFib").value = "";
+  save(); render();
+});
+
+document.getElementById("exportBtn").addEventListener("click", ()=>{
+  const rows = [["Date","Meal","Food","Calories","Protein (g)","Carbs (g)","Fibre (g)"]];
+  const days = [];
+  for(let i=0;i<localStorage.length;i++){
+    const k = localStorage.key(i);
+    if(k && k.indexOf(KEY_PREFIX)===0) days.push(k);
+  }
+  days.sort();
+  days.forEach(k=>{
+    const dateStr = k.slice(KEY_PREFIX.length);
+    let dayEntries = [];
+    try{ dayEntries = JSON.parse(localStorage.getItem(k)) || []; }catch(e){}
+    dayEntries.forEach(e=>{
+      rows.push([dateStr, e.meal, e.name, Math.round(e.cal), Math.round(e.prot*10)/10, Math.round(e.carb*10)/10, Math.round(e.fib*10)/10]);
+    });
+  });
+  if(rows.length===1){
+    showErr("No logged data yet to export.");
+    return;
+  }
+  clearErr();
+  const csv = rows.map(r=>r.map(v=>{
+    const s = String(v);
+    return (s.indexOf(",")>-1 || s.indexOf('"')>-1) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "calorie-log-export.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+loadEntries();
+render();
+</script>
+</body>
+</html>
